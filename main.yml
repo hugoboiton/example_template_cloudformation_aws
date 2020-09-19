@@ -1,0 +1,127 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Main stactk
+Paramaters:
+  OwnerNamen:
+    Type: String
+    Default: hboiton
+
+  ProyectName:
+    Type: String
+    Default: hboiton-stack
+
+  Environment:
+    Type: String
+    Default: dev-hboiton
+    Description: Environment name to append to resources names and tags
+ 
+  DBAName:
+    Type: String
+    Default: mywordpress
+    Description: Name of Mysql database
+  
+  DBUser:
+    Type: String
+    Default: mysqladmin
+    Description: Name of Mysql admin user
+
+  DBPassword:
+    Type: String
+    Default : F5T9!aopw!5/*7
+    Description: password of mysql admin 
+  
+  CidrBlock:
+    Type: String
+    Default: 198.162.0.0/16
+    Description: Please enter the IP range (CIDR notation) for this VPC
+
+Resources:
+  Vpc:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "/vpc/vpc.yml"
+      Paramaters:
+        OwnerNamen: !Ref OwnerNamen
+        ProyectName: !Ref ProyectName
+        Environment: !Ref Environment
+        CidrBlock: !Ref CidrBlock
+  
+  RDS:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "/rds/rds.yml"
+      Paramaters:
+        OwnerNamen: !Ref OwnerNamen
+        ProyectName: !Ref ProyectName
+        Environment: !Ref Environment
+        DBUser: !Ref DBUser
+        DBPassword: !Ref DBPassword
+        VpcId: 
+          Fn::GetAtt: 
+          - Vpc
+          - Outputs.VPCID
+        Subnet1: 
+          Fn::GetAtt: 
+          - Vpc
+          - Outputs.PRIVATESUBNET1
+        Subnet2: 
+          Fn::GetAtt: 
+          - Vpc
+          - Outputs.PRIVATESUBNET2
+        SecurityGroupServer: 
+          Fn::GetAtt: 
+          - SG
+          - Outputs.SecurityGroupServer
+  
+  EC2:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "/ec2/ec2.yml"
+      Paramaters:
+        OwnerNamen: !Ref OwnerNamen
+        ProyectName: !Ref ProyectName
+        Environment: !Ref Environment
+        DBAName: !Ref DBAName 
+        DBUser: !Ref DBUser
+        DBPassword: !Ref DBPassword
+        DBAddress:  
+          Fn::GetAtt: 
+          - RDS
+          - Outputs.Endpoint
+        VpcId: 
+          Fn::GetAtt: 
+          - Vpc
+          - Outputs.VPCID
+        SubnetID:
+          Fn::GetATT:
+            - Vpc
+            - Outputs.PUBLICSUBNET1
+        SecurityGroupServer:
+          Fn::GetAtt: 
+            - SG
+            - Outputs.SecurityGroupServer
+
+  SG:
+    Type:  AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "/sg/sg.yml"
+      Paramaters:
+        OwnerName: !Ref OwnerName
+        ProjectName: !Ref ProjectName
+        Environment: !Ref Environment
+        VpcId: 
+          Fn::GetAtt: 
+          - Vpc
+          - Outputs.VPCID
+  
+  DNS:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      TemplateURL: "/dns/dns.yml"
+      Parameters:
+        OwnerName: !Ref OwnerName
+        ProjectName: !Ref ProjectName
+        Environment: !Ref Environment
+        Ec2Ip: 
+          Fn::GetAtt: 
+          - EC2
+          - Outputs.Ec2PublicId
