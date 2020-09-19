@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creates THE RDS
+Parameters:
+  OwnerNamen:
+    Type: String
+    Default: hboiton
+
+  ProyectName:
+    Type: String
+    Default: hboiton-stack
+  
+  Environment:
+    Type: String
+    Default: dev-hboiton
+    Description: Environment name to append to resources names and tags
+
+  VpcId:
+    Type: String
+    Description: VPC Identifier
+
+  Subnet1:
+    Type: String
+    Description: Subnet name
+  
+  Subnet2:
+    Type: String
+    Description: Subnet name
+
+  SecurityGroupServer:
+    Type: String
+    Description: Allowed security group to reach RDS
+
+  DBUser:
+    Type: String
+    Default: mysqladmin
+    Description: Name of Mysql admin user
+
+  DBPassword:
+    Type: String
+    Default : F5T9!aopw!5/*7
+    Description: password of mysql admin 
+
+  DBStorage:
+    Type: String
+    Default: '5'
+    Description: Allocated storage for db
+
+  DBInstanceClass:
+    Type: String
+    Default: db.t2.micro
+    Description: DB instance class
+
+Resources:
+  Database:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Sub mysql-id-${Environment}
+      DBName: !Sub mysql${Environment}
+      Engine: MySQL
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      DBInstanceClass: !Ref DBInstanceClass
+      DBSecurityGroups:
+      - Ref: DBSecurityGroup
+      PubliclyAccessible: false
+      AllocatedStorage: "5"
+      MasterUsername: !Ref DBUser
+      MasterUserPassword: !Ref DBPassword
+      Port: 3306
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties: 
+      DBSubnetGroupDescription: My db subnet group
+      DBSubnetGroupName: !Sub mysubnetgroup-${Environment}
+      SubnetIds: 
+        - !Ref Subnet1
+        - !Ref Subnet2
+  
+  DBSecurityGroup:
+    Type: AWS::RDS::DBSecurityGroup
+    Properties:
+      EC2VpcId: !Ref VpcId
+      DBSecurityGroupIngress:
+        EC2SecurityGroupId: !Ref SecurityGroupServer
+      GroupDescription: Frontend Access
+
+Outputs:
+
+  DbId:
+    Value: !Ref Database
+
+  SecurityGroupDB:
+    Value: !Ref DBSecurityGroup
+
+  Endpoint:
+    Value: !GetAtt Database.Endpoint.Address
+    
