@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creates THE INSTANCE EC2
+Parameters:
+  OwnerNamen:
+    Type: String
+    Default: hboiton
+
+  ProyectName:
+    Type: String
+    Default: hboiton-stack
+  
+  Environment:
+    Type: String
+    Default: dev-hboiton
+    Description: Environment name to append to resources names and tags
+  
+  DBAName:
+    Type: String
+    Default: mywordpress
+    Description: Name of Mysql database
+  
+  DBUser:
+    Type: String
+    Default: mysqladmin
+    Description: Name of Mysql admin user
+
+  DBPassword:
+    Type: String
+    Default : F5T9!aopw!5/*7
+    Description: password of mysql admin 
+
+  DBAddress:
+    Type: String
+    Description: Database endpoint
+
+  VpcId:
+    Type: String
+    Description: VPC Identifier
+
+  SubnetID:
+    Type: String
+    Description: Subnet name
+
+  SecurityGroupServer:
+    Type: String
+    Description: Allowed security group to reach RDS
+ 
+  ImageId:
+    Type: String
+    Default: ami-0c94855ba95c71c99
+    Description: AMI of the image to deploy
+
+Resources: 
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: t2.micro
+      SecurityGroupIds:
+      - !Ref SecurityGroupServer
+      SubnetId: !Ref SubnetId
+      Tags:
+        -
+          Key: Name
+          Value: !Sub ec2-wordpress-${Environment}
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install httpd -y
+          service httpd start
+          wget https://wordpress.org/latest.tar.gz
+          tar -xzf latest.tar.gz
+          cd wordpress
+          cp wp-config-sample.php wp-config.php
+          
+
+          cp -r wordpress/* /var/www/html/
+          service httpd restart
+
+  EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      InstanceId: !Ref EC2Instance
+
+Outputs:
+
+  Ec2Id:
+    Value: !Ref EC2Instance
+
+  Ec2PublicId:
+    Value: !GetAtt EC2Instance.PublicIp  
