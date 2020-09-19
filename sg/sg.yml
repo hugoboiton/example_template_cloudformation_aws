@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creates the securytigruop-sever
+Parameters:
+  OwnerNamen:
+    Type: String
+    Default: hboiton
+
+  ProyectName:
+    Type: String
+    Default: hboiton-stack
+  
+  Environment:
+    Type: String
+    Default: dev-hboiton
+    Description: Environment name to append to resources names and tags
+
+  VpcId:
+    Type: String
+    Description: VPC Identifier
+    
+Resources: 
+  
+  SecurityGroupServer:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ec2-sg-${Environment}
+      GroupDescription: Allow connections to specified CIDR ranges
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      VpcId: !Ref VpcId
+
+Outputs:
+
+  SecurityGroupServer:
+    Value: !Ref SecurityGroupServer
