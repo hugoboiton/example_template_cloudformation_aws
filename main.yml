@@ -1,33 +1,49 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Main stactk
-Paramaters:
+Parameters:
   OwnerNamen:
     Type: String
     Default: hboiton
+    Description: name 
 
   ProyectName:
     Type: String
     Default: hboiton-stack
+    Description: name proyect stack
 
   Environment:
     Type: String
     Default: dev-hboiton
     Description: Environment name to append to resources names and tags
  
-  DBAName:
+  BucketURL:
+    Type: String
+    Default: https://hboiton-trambo.s3.amazonaws.com/templas_stack
+    Description: link you my bucket
+
+  DBName:
     Type: String
     Default: mywordpress
     Description: Name of Mysql database
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
   
   DBUser:
     Type: String
     Default: mysqladmin
     Description: Name of Mysql admin user
+    MinLength: '1'
+    MaxLength: '16'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
 
   DBPassword:
     Type: String
-    Default : F5T9!aopw!5/*7
-    Description: password of mysql admin 
+    Default :  wptrambo123
+    Description: password of mysql admin
+    MinLength: '8'
+    MaxLength: '41'
+    AllowedPattern: '[a-zA-Z0-9]*'
   
   CidrBlock:
     Type: String
@@ -38,90 +54,53 @@ Resources:
   Vpc:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: "/vpc/vpc.yml"
-      Paramaters:
+      TemplateURL: !Sub ${BucketURL}/vpc/vpc.yml
+      TimeoutInMinutes: '60'
+      Parameters:
         OwnerNamen: !Ref OwnerNamen
         ProyectName: !Ref ProyectName
         Environment: !Ref Environment
         CidrBlock: !Ref CidrBlock
-  
+
   RDS:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: "/rds/rds.yml"
-      Paramaters:
+      TemplateURL: !Sub ${BucketURL}/rds/rds.yml
+      TimeoutInMinutes: '60'
+      Parameters:
         OwnerNamen: !Ref OwnerNamen
         ProyectName: !Ref ProyectName
         Environment: !Ref Environment
         DBUser: !Ref DBUser
         DBPassword: !Ref DBPassword
-        VpcId: 
-          Fn::GetAtt: 
-          - Vpc
-          - Outputs.VPCID
-        Subnet1: 
-          Fn::GetAtt: 
-          - Vpc
-          - Outputs.PRIVATESUBNET1
-        Subnet2: 
-          Fn::GetAtt: 
-          - Vpc
-          - Outputs.PRIVATESUBNET2
-        SecurityGroupServer: 
-          Fn::GetAtt: 
-          - SG
-          - Outputs.SecurityGroupServer
+        VpcId: !GetAtt Vpc.Outputs.VPCID
+        PrivateSubnet1: !GetAtt Vpc.Outputs.PrivateSubnet1
+        PrivateSubnet2: !GetAtt Vpc.Outputs.PrivateSubnet2
   
   EC2:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: "/ec2/ec2.yml"
-      Paramaters:
+      TemplateURL: !Sub ${BucketURL}/ec2/ec2.yml
+      TimeoutInMinutes: '60'
+      Parameters:
         OwnerNamen: !Ref OwnerNamen
         ProyectName: !Ref ProyectName
         Environment: !Ref Environment
-        DBAName: !Ref DBAName 
+        DBName: !Ref DBName 
         DBUser: !Ref DBUser
         DBPassword: !Ref DBPassword
-        DBAddress:  
-          Fn::GetAtt: 
-          - RDS
-          - Outputs.Endpoint
-        VpcId: 
-          Fn::GetAtt: 
-          - Vpc
-          - Outputs.VPCID
-        SubnetID:
-          Fn::GetATT:
-            - Vpc
-            - Outputs.PUBLICSUBNET1
-        SecurityGroupServer:
-          Fn::GetAtt: 
-            - SG
-            - Outputs.SecurityGroupServer
-
-  SG:
-    Type:  AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: "/sg/sg.yml"
-      Paramaters:
-        OwnerName: !Ref OwnerName
-        ProjectName: !Ref ProjectName
-        Environment: !Ref Environment
-        VpcId: 
-          Fn::GetAtt: 
-          - Vpc
-          - Outputs.VPCID
+        DBAddress: !GetAtt RDS.Outputs.Endpoint
+        VpcId: !GetAtt Vpc.Outputs.VPCID
+        SubnetID: !GetAtt Vpc.Outputs.PublicSubnet1
+        SecurityGroupServer: !GetAtt RDS.Outputs.EC2SecurityGroup
   
   DNS:
     Type: 'AWS::CloudFormation::Stack'
     Properties:
-      TemplateURL: "/dns/dns.yml"
+      TemplateURL: !Sub ${BucketURL}/dns/dns.yml
+      TimeoutInMinutes: '60'
       Parameters:
-        OwnerName: !Ref OwnerName
-        ProjectName: !Ref ProjectName
+        OwnerNamen: !Ref OwnerNamen
+        ProyectName: !Ref ProyectName
         Environment: !Ref Environment
-        Ec2Ip: 
-          Fn::GetAtt: 
-          - EC2
-          - Outputs.Ec2PublicId
+        Ec2Ip: !GetAtt EC2.Outputs.Ec2PublicId

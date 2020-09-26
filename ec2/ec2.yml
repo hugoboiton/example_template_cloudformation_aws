@@ -14,7 +14,7 @@ Parameters:
     Default: dev-hboiton
     Description: Environment name to append to resources names and tags
   
-  DBAName:
+  DBName:
     Type: String
     Default: mywordpress
     Description: Name of Mysql database
@@ -53,35 +53,73 @@ Parameters:
 Resources: 
   EC2Instance:
     Type: AWS::EC2::Instance
+    Metadata:
+      'AWS::CloudFormation::Init':
+        config:
+          files:
+            /wp-config.php:
+              content: !Join 
+                - ''
+                - - |
+                    <?php
+                  - 'define(''DB_NAME'',          '''
+                  - !Ref DBName
+                  - |
+                    ');
+                  - 'define(''DB_USER'',          '''
+                  - !Ref DBUser
+                  - |
+                    ');
+                  - 'define(''DB_PASSWORD'',      '''
+                  - !Ref DBPassword
+                  - |
+                    ');
+                  - 'define(''DB_HOST'',          '''
+                  - !Ref DBAddress
+                  - |
+                    ');
+                  - |
+                    define('DB_CHARSET',       'utf8');
+                  - |
+                    define('DB_COLLATE',       '');
+                  - |
+                    $table_prefix = 'wp_';
+                  - |
+                    require_once( ABSPATH . 'wp-settings.php' );
+              mode: '000644'
+              owner: root
+              group: root
     Properties:
       ImageId: !Ref ImageId
       InstanceType: t2.micro
-      SecurityGroupIds:
-      - !Ref SecurityGroupServer
-      SubnetId: !Ref SubnetId
-      Tags:
-        -
-          Key: Name
-          Value: !Sub ec2-wordpress-${Environment}
+      NetworkInterfaces:
+      - AssociatePublicIpAddress: True
+        DeleteOnTermination: True
+        DeviceIndex: 0
+        GroupSet: 
+          - !Ref SecurityGroupServer
+        SubnetId: !Ref SubnetID
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
           yum update -y
-          yum install httpd -y
-          service httpd start
-          wget https://wordpress.org/latest.tar.gz
-          tar -xzf latest.tar.gz
-          cd wordpress
-          cp wp-config-sample.php wp-config.php
-          
-
+          yum install httpd php php-mysql -y
+          cd /var/www/html
+          wget https://wordpress.org/wordpress-5.1.1.tar.gz
+          tar -xzf wordpress-5.1.1.tar.gz
           cp -r wordpress/* /var/www/html/
-          service httpd restart
-
-  EIP:
-    Type: AWS::EC2::EIP
-    Properties:
-      InstanceId: !Ref EC2Instance
+          cp -r wp-config.php /var/www/html/wordpress/wp-config.php
+          rm -rf wordpress
+          rm -rf wordpress-5.1.1.tar.gz
+          chmod -R 755 wp-content
+          chown -R apache:apache wp-content
+          wget https://s3.amazonaws.com/bucketforwordpresslab-donotdelete/htaccess.txt
+          mv htaccess.txt .htaccess
+          chkconfig httpd on
+          service httpd start
+      Tags:
+        - Key: Name
+          Value: !Sub ${Environment}-ec2-wordpress
 
 Outputs:
 

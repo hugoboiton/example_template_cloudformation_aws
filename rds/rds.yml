@@ -18,17 +18,13 @@ Parameters:
     Type: String
     Description: VPC Identifier
 
-  Subnet1:
+  PrivateSubnet1:
     Type: String
     Description: Subnet name
   
-  Subnet2:
+  PrivateSubnet2:
     Type: String
     Description: Subnet name
-
-  SecurityGroupServer:
-    Type: String
-    Description: Allowed security group to reach RDS
 
   DBUser:
     Type: String
@@ -42,7 +38,7 @@ Parameters:
 
   DBStorage:
     Type: String
-    Default: '5'
+    Default: '50'
     Description: Allocated storage for db
 
   DBInstanceClass:
@@ -51,38 +47,55 @@ Parameters:
     Description: DB instance class
 
 Resources:
-  Database:
-    Type: AWS::RDS::DBInstance
-    Properties:
-      DBInstanceIdentifier: !Sub mysql-id-${Environment}
-      DBName: !Sub mysql${Environment}
-      Engine: MySQL
-      DBSubnetGroupName: !Ref DBSubnetGroup
-      DBInstanceClass: !Ref DBInstanceClass
-      DBSecurityGroups:
-      - Ref: DBSecurityGroup
-      PubliclyAccessible: false
-      AllocatedStorage: "5"
-      MasterUsername: !Ref DBUser
-      MasterUserPassword: !Ref DBPassword
-      Port: 3306
-
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties: 
       DBSubnetGroupDescription: My db subnet group
-      DBSubnetGroupName: !Sub mysubnetgroup-${Environment}
+      DBSubnetGroupName: !Sub ${Environment}-mysubnetgroup
       SubnetIds: 
-        - !Ref Subnet1
-        - !Ref Subnet2
-  
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${Environment}-sg-ec2
+      GroupDescription: Allow HTTP and SSL connections
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: Name
+          Value: !Sub ${Environment}-sg-ec2
+
   DBSecurityGroup:
     Type: AWS::RDS::DBSecurityGroup
     Properties:
       EC2VpcId: !Ref VpcId
+      GroupDescription: EC2 access security
       DBSecurityGroupIngress:
-        EC2SecurityGroupId: !Ref SecurityGroupServer
-      GroupDescription: Frontend Access
+        EC2SecurityGroupId: !Ref EC2SecurityGroup
+       
+  Database:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Sub ${Environment}-mysql-id
+      DBName: mybd1
+      DBInstanceClass: !Ref DBInstanceClass
+      AllocatedStorage: !Ref DBStorage
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      Engine: MySQL
+      MasterUsername: !Ref DBUser
+      MasterUserPassword: !Ref DBPassword
+      DBSecurityGroups:
+      - Ref: DBSecurityGroup
 
 Outputs:
 
@@ -94,4 +107,6 @@ Outputs:
 
   Endpoint:
     Value: !GetAtt Database.Endpoint.Address
-    
+
+  EC2SecurityGroup:
+    Value: !Ref EC2SecurityGroup 
